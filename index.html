@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車貸案件前置檢核與試算系統 (Mini App)</title>
+  <style>
+    :root {
+      --bg-dark: #121316;
+      --card-bg: #1e2026;
+      --accent-gold: #c9a84c;
+      --text-main: #faf6ee;
+      --text-sub: #a0a5b1;
+      --border-color: #2a2d35;
+      --success-green: #2e7d32;
+      --warning-yellow: #f57f17;
+      --alert-orange: #d84315;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background-color: var(--bg-dark); color: var(--text-main); padding: 16px; line-height: 1.5; font-size: 14px; -webkit-user-select: none; user-select: none; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+    .header h1 { font-size: 18px; color: var(--accent-gold); margin-bottom: 4px; }
+    .disclaimer-banner { background-color: rgba(201, 168, 76, 0.1); border: 1px solid var(--accent-gold); color: #e5c158; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-bottom: 16px; text-align: center; }
+    .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .card-title { font-weight: bold; color: var(--accent-gold); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; }
+    .form-group { margin-bottom: 12px; }
+    .form-group label { display: block; font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+    .input-row { display: flex; align-items: center; gap: 8px; }
+    input[type="number"], select { flex: 1; background: #15161a; border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; border-radius: 6px; font-size: 14px; outline: none; }
+    input[type="range"] { flex: 1; accent-color: var(--accent-gold); }
+    .unit { font-size: 12px; color: var(--text-sub); width: 32px; text-align: right; }
+    .btn-calc { width: 100%; background: linear-gradient(135deg, #c9a84c, #9e7f31); color: #000; font-weight: bold; padding: 10px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; margin-top: 8px; }
+    .status-badge { padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 14px; text-align: center; margin-bottom: 12px; }
+    .status-ready { background-color: rgba(46, 125, 50, 0.2); border: 1px solid #4caf50; color: #81c784; }
+    .status-need-docs { background-color: rgba(245, 127, 23, 0.2); border: 1px solid #ffb74d; color: #ffe082; }
+    .status-consult { background-color: rgba(216, 67, 21, 0.2); border: 1px solid #ff7043; color: #ffab91; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .metric-box { background: #15161a; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center; }
+    .metric-val { font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 2px; }
+    .doc-list { list-style: none; padding-left: 0; font-size: 13px; }
+    .doc-item { padding: 6px 0; border-bottom: 1px dashed var(--border-color); display: flex; align-items: center; gap: 8px; }
+    .doc-item input { accent-color: var(--accent-gold); }
+    .sec-block { display: none; text-align: center; padding: 40px 20px; background: #1a0000; border: 2px solid #ff3333; border-radius: 10px; margin-top: 30px; }
+    .sec-block h2 { color: #ff4d4d; font-size: 18px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div id="sec-screen" class="sec-block">
+    <h2>🔒 資安防護機制已啟動</h2>
+    <p style="color:#ffb3b3; font-size:13px;">為保護金融授信邏輯與個人隱私數據，本系統禁止開啟瀏覽器開發者控制台（F12 / Inspect）。內容已安全清除。</p>
+  </div>
+
+  <div id="app-root" class="container">
+    <div class="header">
+      <h1>🚗 車貸案件前置檢核與試算系統</h1>
+      <p style="font-size: 11px; color: var(--text-sub);">新車業務接案專用 · 地端零傳輸防禦版</p>
+    </div>
+
+    <div class="disclaimer-banner">
+      ⚠️ 一般性前置參考，非銀行核貸承諾，最終結果以金融機構徵審為準。
+    </div>
+
+    <!-- 試算表單 -->
+    <div class="card">
+      <div class="card-title">一、 案件條件輸入</div>
+      <div class="form-group">
+        <label>車價金額 (新台幣)</label>
+        <div class="input-row">
+          <input type="number" id="carPrice" value="1000000" step="50000">
+          <span class="unit">元</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>頭期款金額</label>
+        <div class="input-row">
+          <input type="number" id="downPayment" value="200000" step="10000">
+          <span class="unit">元</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>貸款期數 (月)</label>
+        <div class="input-row">
+          <select id="periodMonths">
+            <option value="36">36 期 (3年)</option>
+            <option value="48">48 期 (4年)</option>
+            <option value="60" selected>60 期 (5年)</option>
+            <option value="72">72 期 (6年)</option>
+            <option value="84">84 期 (7年)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>預估年利率 (%)</label>
+        <div class="input-row">
+          <input type="number" id="interestRate" value="3.5" step="0.1">
+          <span class="unit">%</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>客戶月收入級距 (月均)</label>
+        <div class="input-row">
+          <input type="number" id="monthlyIncome" value="50000" step="5000">
+          <span class="unit">元</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>既有每月貸款與卡費負擔</label>
+        <div class="input-row">
+          <input type="number" id="existingDebt" value="10000" step="1000">
+          <span class="unit">元</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>客戶職業與財力型態</label>
+        <select id="applicantType">
+          <option value="SALARY">受薪族 (有薪轉 / 扣繳憑單)</option>
+          <option value="BUSINESS">自營商 / 商家 (有營業登記)</option>
+          <option value="FREELANCE">自由業 / 無固定薪轉證明</option>
+        </select>
+      </div>
+
+      <button class="btn-calc" onclick="runCheck()">執行前置檢核試算</button>
+    </div>
+
+    <!-- 檢核結果 -->
+    <div class="card" id="resultCard">
+      <div class="card-title">二、 檢核試算結果</div>
+      <div id="statusBadge" class="status-badge status-ready">🟢 資料齊備，可準備送件</div>
+
+      <div class="metric-grid">
+        <div class="metric-box">
+          <div style="font-size:11px; color:var(--text-sub);">預估本車月付金</div>
+          <div class="metric-val" id="valMonthlyPmt">NT$ 14,556</div>
+        </div>
+        <div class="metric-box">
+          <div style="font-size:11px; color:var(--text-sub);">總月收收支比 (DTI)</div>
+          <div class="metric-val" id="valDtiRatio">49.1%</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px; color:var(--text-sub); margin-bottom:8px;" id="dtiHint">
+        💡 評估提示：總月付金佔月收入比例健康，屬常見合規收支範圍。
+      </div>
+    </div>
+
+    <!-- 缺件與清單 -->
+    <div class="card">
+      <div class="card-title">
+        <span>三、 建議準備文件對照清單</span>
+        <span style="font-size:11px; color:var(--text-sub);" id="applicantTypeName">受薪族</span>
+      </div>
+      <ul class="doc-list" id="docListContainer">
+        <!-- 動態渲染 -->
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 資安防護：防 F12 / 開發者工具防護層
+    // ==========================================
+    (function antiDebug() {
+      // 1. 禁用右鍵選單與常見快捷鍵
+      document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+      document.addEventListener('keydown', function(e) {
+        if (e.keyCode === 123 || // F12
+           (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74 || e.keyCode === 67)) || // Ctrl+Shift+I/J/C
+           (e.ctrlKey && e.keyCode === 85)) { // Ctrl+U
+          e.preventDefault();
+        }
+      });
+
+      // 2. 開發者工具開啟偵測
+      function lockDown() {
+        document.getElementById('app-root').style.display = 'none';
+        document.getElementById('sec-screen').style.display = 'block';
+        if (window.console) { console.clear(); }
+      }
+
+      var threshold = 160;
+      setInterval(function() {
+        var widthThreshold = window.outerWidth - window.innerWidth > threshold;
+        var heightThreshold = window.outerHeight - window.innerHeight > threshold;
+        if (widthThreshold || heightThreshold) {
+          lockDown();
+        }
+      }, 800);
+
+      // 3. Debugger 陷阱 (防調試)
+      setInterval(function() {
+        var startTime = new Date().getTime();
+        (function() {}["constructor"]("debugger")());
+        var endTime = new Date().getTime();
+        if (endTime - startTime > 100) {
+          lockDown();
+        }
+      }, 1000);
+    })();
+
+    // ==========================================
+    // 試算與檢核邏輯
+    // ==========================================
+    function pmt(ratePerYear, nperiod, pv) {
+      if (ratePerYear === 0) return pv / nperiod;
+      var r = (ratePerYear / 100) / 12;
+      return (pv * r * Math.pow(1 + r, nperiod)) / (Math.pow(1 + r, nperiod) - 1);
+    }
+
+    function runCheck() {
+      var carPrice = parseFloat(document.getElementById('carPrice').value) || 0;
+      var downPayment = parseFloat(document.getElementById('downPayment').value) || 0;
+      var loanAmount = carPrice - downPayment;
+      if (loanAmount <= 0) { alert('頭期款不可大於等於車價'); return; }
+
+      var period = parseInt(document.getElementById('periodMonths').value);
+      var rate = parseFloat(document.getElementById('interestRate').value) || 0;
+      var monthlyIncome = parseFloat(document.getElementById('monthlyIncome').value) || 1;
+      var existingDebt = parseFloat(document.getElementById('existingDebt').value) || 0;
+      var applicantType = document.getElementById('applicantType').value;
+
+      var monthlyPmt = Math.round(pmt(rate, period, loanAmount));
+      var totalMonthlyObligation = monthlyPmt + existingDebt;
+      var dti = (totalMonthlyObligation / monthlyIncome) * 100;
+
+      document.getElementById('valMonthlyPmt').innerText = 'NT$ ' + monthlyPmt.toLocaleString();
+      document.getElementById('valDtiRatio').innerText = dti.toFixed(1) + '%';
+
+      var statusBadge = document.getElementById('statusBadge');
+      var dtiHint = document.getElementById('dtiHint');
+
+      if (dti <= 60) {
+        statusBadge.className = 'status-badge status-ready';
+        statusBadge.innerText = '🟢 資料齊備，可準備送件';
+        dtiHint.innerText = '💡 評估提示：總月付金佔月收入比例健康（<=60%），屬常見合規收支範圍。';
+      } else if (dti <= 75) {
+        statusBadge.className = 'status-badge status-need-docs';
+        statusBadge.innerText = '🟡 需補充資力證明文件';
+        dtiHint.innerText = '💡 評估提示：總負擔率略高（60%-75%），建議補齊財力證明（如定存、房屋扣繳憑單）或增加保人。';
+      } else {
+        statusBadge.className = 'status-badge status-consult';
+        statusBadge.innerText = '🟠 建議先與授信主管確認';
+        dtiHint.innerText = '⚠️ 評估提示：收支比大於 75%，送件退件機率高，請確認是否有其他資力補充證明。';
+      }
+
+      // 動態更新文件清單
+      var docContainer = document.getElementById('docListContainer');
+      var typeName = document.getElementById('applicantTypeName');
+      docContainer.innerHTML = '';
+
+      var docs = [];
+      if (applicantType === 'SALARY') {
+        typeName.innerText = '受薪族';
+        docs = [
+          '身分證正反面影本 (必要)',
+          '駕駛執照或健保卡雙證件影本 (必要)',
+          '近六個月薪轉存摺封面與內頁明細 (必要)',
+          '最新年度扣繳憑單或所得清單 (加分證明)',
+          '若任職未滿半年，可補前一份工作離職/薪轉證明'
+        ];
+      } else if (applicantType === 'BUSINESS') {
+        typeName.innerText = '自營商 / 商家';
+        docs = [
+          '負責人身分證正反面影本 (必要)',
+          '商業登記抄本 / 設立變更登記事項表 (必要)',
+          '近四至六期營業稅申報書 (401 / 405表) (必要)',
+          '公司主要往來銀行存摺近一年明細 (必要)',
+          '營業場所照片或租賃契約 (備查)'
+        ];
+      } else {
+        typeName.innerText = '自由業 / 無薪轉';
+        docs = [
+          '申請人身分證正反面影本 (必要)',
+          '常用存款帳戶近一年存摺完整明細 (必要)',
+          '不動產（房屋/土地）所有權狀影本 (強烈建議)',
+          '定期存款單或基金/股票投資庫存證明 (加分)',
+          '建議提供二親等內具穩定薪轉之二保人'
+        ];
+      }
+
+      docs.forEach(function(d) {
+        var li = document.createElement('li');
+        li.className = 'doc-item';
+        li.innerHTML = '<input type="checkbox"> <span>' + d + '</span>';
+        docContainer.appendChild(li);
+      });
+    }
+
+    // 初次載入自動計算一次
+    runCheck();
+  </script>
+</body>
+</html>
