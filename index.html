@@ -37,10 +37,16 @@
     .status-consult { background-color: rgba(216, 67, 21, 0.2); border: 1px solid #ff7043; color: #ffab91; }
     .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
     .metric-box { background: #15161a; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); text-align: center; }
-    .metric-val { font-size: 16px; font-weight: bold; color: var(--accent-gold); margin-top: 2px; }
-    .doc-list { list-style: none; padding-left: 0; font-size: 13px; }
+    .metric-val { font-size: 16px; font-weight: bold; color: var(--accent-    .doc-list { list-style: none; padding-left: 0; font-size: 13px; }
     .doc-item { padding: 6px 0; border-bottom: 1px dashed var(--border-color); display: flex; align-items: center; gap: 8px; }
     .doc-item input { accent-color: var(--accent-gold); }
+    .table-container { overflow-x: auto; margin-top: 10px; max-height: 360px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; }
+    table.schedule-table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: right; }
+    table.schedule-table th, table.schedule-table td { padding: 8px 10px; border-bottom: 1px solid #2a2d35; white-space: nowrap; }
+    table.schedule-table th { background-color: #15161a; color: var(--accent-gold); position: sticky; top: 0; font-weight: bold; text-align: right; z-index: 2; }
+    table.schedule-table th:first-child, table.schedule-table td:first-child { text-align: center; }
+    table.schedule-table tr:hover { background-color: rgba(201, 168, 76, 0.05); }
+    .btn-toggle-table { background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; }
     .sec-block { display: none; text-align: center; padding: 40px 20px; background: #1a0000; border: 2px solid #ff3333; border-radius: 10px; margin-top: 30px; }
     .sec-block h2 { color: #ff4d4d; font-size: 18px; margin-bottom: 10px; }
   </style>
@@ -147,12 +153,69 @@
     <!-- 缺件與清單 -->
     <div class="card">
       <div class="card-title">
-        <span>三、 建議準備文件對照清單</span>
+        <span>三、 建議準備文件與銀行風控評估清單</span>
         <span style="font-size:11px; color:var(--text-sub);" id="applicantTypeName">受薪族</span>
       </div>
+
+      <!-- 文件齊備度與銀行審核風控評估看板 -->
+      <div class="metric-grid" style="grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+        <div class="metric-box">
+          <div style="font-size:11px; color:var(--text-sub);">必要文件勾選率</div>
+          <div class="metric-val" style="font-size:15px;" id="docCompletionVal">0 / 3 (0%)</div>
+        </div>
+        <div class="metric-box">
+          <div style="font-size:11px; color:var(--text-sub);">銀行審核嚴格度預估</div>
+          <div class="metric-val" style="font-size:14px; color:#ff7043;" id="docRiskBadge">🔴 極為嚴格</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px; padding:8px 10px; border-radius:6px; background:#15161a; border:1px solid var(--border-color); color:var(--text-main); margin-bottom:12px;" id="docRiskHint">
+        ⚠️ 評估提醒：請勾選客戶已準備的文件。若核心財力或身分證明未提供，銀行將審核極度嚴格甚至直接退件。
+      </div>
+
       <ul class="doc-list" id="docListContainer">
         <!-- 動態渲染 -->
       </ul>
+    </div>
+
+    <!-- 每期分期攤還明細表 -->
+    <div class="card">
+      <div class="card-title">
+        <span>四、 每期分期攤還明細表 (本息平均攤還)</span>
+        <button class="btn-toggle-table" id="toggleScheduleBtn" onclick="toggleSchedule()">展開完整期數</button>
+      </div>
+
+      <div class="metric-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px;">
+        <div class="metric-box" style="padding: 6px;">
+          <div style="font-size:10px; color:var(--text-sub);">貸款總額</div>
+          <div class="metric-val" style="font-size:13px;" id="valLoanAmount">NT$ 800,000</div>
+        </div>
+        <div class="metric-box" style="padding: 6px;">
+          <div style="font-size:10px; color:var(--text-sub);">預估總利息</div>
+          <div class="metric-val" style="font-size:13px; color:#ffb74d;" id="valTotalInterest">NT$ 73,210</div>
+        </div>
+        <div class="metric-box" style="padding: 6px;">
+          <div style="font-size:10px; color:var(--text-sub);">累積總還款額</div>
+          <div class="metric-val" style="font-size:13px; color:#81c784;" id="valTotalPayment">NT$ 873,210</div>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th>期數</th>
+              <th>預估月付金</th>
+              <th>償還本金</th>
+              <th>償還利息</th>
+              <th>剩餘本金</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleTableBody">
+            <!-- 動態渲染表格列 -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -199,12 +262,165 @@
     })();
 
     // ==========================================
-    // 試算與檢核邏輯
+    // 試算與分期攤還邏輯
     // ==========================================
+    var showFullSchedule = false;
+    var currentSchedule = [];
+    var currentDocItems = [];
+
     function pmt(ratePerYear, nperiod, pv) {
       if (ratePerYear === 0) return pv / nperiod;
       var r = (ratePerYear / 100) / 12;
       return (pv * r * Math.pow(1 + r, nperiod)) / (Math.pow(1 + r, nperiod) - 1);
+    }
+
+    function generateAmortizationSchedule(principal, period, ratePct) {
+      if (principal <= 0 || period <= 0) return { list: [], totalInterest: 0, totalPayment: 0 };
+      var r = ratePct > 0 ? (ratePct / 100) / 12 : 0;
+      var pmtVal = r > 0 ? Math.round((principal * r * Math.pow(1 + r, period)) / (Math.pow(1 + r, period) - 1)) : Math.round(principal / period);
+      
+      var balance = principal;
+      var list = [];
+      var totalInterest = 0;
+
+      for (var m = 1; m <= period; m++) {
+        var interest = Math.round(balance * r);
+        var prinPart, pmtM;
+        if (m === period) {
+          prinPart = Math.round(balance);
+          pmtM = prinPart + interest;
+          balance = 0;
+        } else {
+          prinPart = pmtVal - interest;
+          pmtM = pmtVal;
+          balance = balance - prinPart;
+        }
+        totalInterest += interest;
+        list.push({
+          month: m,
+          pmt: pmtM,
+          principal: prinPart,
+          interest: interest,
+          balance: Math.max(0, Math.round(balance))
+        });
+      }
+      return {
+        list: list,
+        totalInterest: totalInterest,
+        totalPayment: Math.round(principal) + totalInterest
+      };
+    }
+
+    function renderScheduleTable() {
+      var tbody = document.getElementById('scheduleTableBody');
+      tbody.innerHTML = '';
+      
+      var itemsToDisplay = showFullSchedule ? currentSchedule : currentSchedule.slice(0, 12);
+      
+      itemsToDisplay.forEach(function(row) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>第 ' + row.month + ' 期</td>' +
+                       '<td>NT$ ' + row.pmt.toLocaleString() + '</td>' +
+                       '<td>NT$ ' + row.principal.toLocaleString() + '</td>' +
+                       '<td>NT$ ' + row.interest.toLocaleString() + '</td>' +
+                       '<td>NT$ ' + row.balance.toLocaleString() + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      if (!showFullSchedule && currentSchedule.length > 12) {
+        var trMore = document.createElement('tr');
+        trMore.innerHTML = '<td colspan="5" style="text-align:center; color:var(--accent-gold); font-size:11px; padding:10px;">... 預設顯示前 12 期，點擊右上角「展開完整期數」查看全數 ' + currentSchedule.length + ' 期 ...</td>';
+        tbody.appendChild(trMore);
+      }
+    }
+
+    function toggleSchedule() {
+      showFullSchedule = !showFullSchedule;
+      document.getElementById('toggleScheduleBtn').innerText = showFullSchedule ? '收合前12期' : '展開完整期數';
+      renderScheduleTable();
+    }
+
+    // ==========================================
+    // 文件勾選連動計算與銀行風控評估
+    // ==========================================
+    function updateDocEvaluation() {
+      var totalNecessary = 0;
+      var checkedNecessary = 0;
+      var totalBonus = 0;
+      var checkedBonus = 0;
+
+      currentDocItems.forEach(function(item, idx) {
+        var chk = document.getElementById('doc_chk_' + idx);
+        if (chk) {
+          item.checked = chk.checked;
+          if (item.isNecessary) {
+            totalNecessary++;
+            if (chk.checked) checkedNecessary++;
+          } else {
+            totalBonus++;
+            if (chk.checked) checkedBonus++;
+          }
+        }
+      });
+
+      var completionPct = totalNecessary > 0 ? Math.round((checkedNecessary / totalNecessary) * 100) : 100;
+      document.getElementById('docCompletionVal').innerText = checkedNecessary + ' / ' + totalNecessary + ' (' + completionPct + '%)';
+
+      var docRiskBadge = document.getElementById('docRiskBadge');
+      var docRiskHint = document.getElementById('docRiskHint');
+
+      var riskLevel = "HIGH";
+      var hintMsg = "";
+
+      if (checkedNecessary === 0) {
+        riskLevel = "HIGH";
+        docRiskBadge.style.color = "#ff5252";
+        docRiskBadge.innerText = "🔴 極為嚴格";
+        hintMsg = "⚠️ 警告：目前未勾選任何核心證明！因提供資訊極少，預估銀行徵審將實施極嚴格審核或直接退件。";
+      } else if (checkedNecessary < totalNecessary) {
+        riskLevel = "MEDIUM";
+        docRiskBadge.style.color = "#ffe082";
+        docRiskBadge.innerText = "🟡 審核較嚴 (缺必要件)";
+        hintMsg = "🟡 提示：尚缺部分必要文件（如薪轉存摺或營業稅單）。銀行將提高資力審查門檻，建議補齊或加拉保人。";
+      } else if (checkedBonus === 0 && totalBonus > 0) {
+        riskLevel = "LOW_MEDIUM";
+        docRiskBadge.style.color = "#81c784";
+        docRiskBadge.innerText = "🟢 標準審核";
+        hintMsg = "🟢 提示：必要文件已全數備齊！若能再勾選補齊加分證明（如扣繳憑單/不動產權狀），過件率將更佳。";
+      } else {
+        riskLevel = "LOW";
+        docRiskBadge.style.color = "#66bb6a";
+        docRiskBadge.innerText = "🟢 順暢快速過件";
+        hintMsg = "🟢 提示：必要與資力加分文件相當完整！資料充實具高度說服力，銀行預估可快速順利核貸！";
+      }
+
+      docRiskHint.innerText = hintMsg;
+      updateCombinedStatus(riskLevel, completionPct);
+    }
+
+    function updateCombinedStatus(docRiskLevel, completionPct) {
+      var statusBadge = document.getElementById('statusBadge');
+      var dtiHint = document.getElementById('dtiHint');
+      var dtiText = document.getElementById('valDtiRatio').innerText;
+      var dti = parseFloat(dtiText) || 0;
+
+      if (completionPct < 50) {
+        statusBadge.className = 'status-badge status-consult';
+        statusBadge.innerText = '🔴 核心財力證明缺件 · 銀行審核極嚴格';
+        dtiHint.innerText = '⚠️ 綜合建議：即便收支比計算正常，因財力與基本文件勾選少，銀行將大幅提高審查難度甚至拒絕收件。';
+      } else if (dti > 75) {
+        statusBadge.className = 'status-badge status-consult';
+        statusBadge.innerText = '🟠 建議先與授信主管確認 (收支比偏高)';
+        dtiHint.innerText = '⚠️ 評估提示：收支比大於 75%，送件退件機率高，請確認是否有額外資力補充證明或保人。';
+      } else if (dti > 60 || docRiskLevel === 'MEDIUM') {
+        statusBadge.className = 'status-badge status-need-docs';
+        statusBadge.innerText = '🟡 需補齊缺件資力證明再送件';
+        dtiHint.innerText = '💡 評估提示：案件收支與文件屬中等範圍，請補齊所有必要財力文件以確保核貸率。';
+      } else {
+        statusBadge.className = 'status-badge status-ready';
+        statusBadge.innerText = '🟢 財務與文件齊備，可準備送件';
+        dtiHint.innerText = '💡 評估提示：總月負擔率健康且核心證明已勾選備齊，符合銀行標準優良案件送件門檻！';
+      }
     }
 
     function runCheck() {
@@ -226,64 +442,60 @@
       document.getElementById('valMonthlyPmt').innerText = 'NT$ ' + monthlyPmt.toLocaleString();
       document.getElementById('valDtiRatio').innerText = dti.toFixed(1) + '%';
 
-      var statusBadge = document.getElementById('statusBadge');
-      var dtiHint = document.getElementById('dtiHint');
-
-      if (dti <= 60) {
-        statusBadge.className = 'status-badge status-ready';
-        statusBadge.innerText = '🟢 資料齊備，可準備送件';
-        dtiHint.innerText = '💡 評估提示：總月付金佔月收入比例健康（<=60%），屬常見合規收支範圍。';
-      } else if (dti <= 75) {
-        statusBadge.className = 'status-badge status-need-docs';
-        statusBadge.innerText = '🟡 需補充資力證明文件';
-        dtiHint.innerText = '💡 評估提示：總負擔率略高（60%-75%），建議補齊財力證明（如定存、房屋扣繳憑單）或增加保人。';
-      } else {
-        statusBadge.className = 'status-badge status-consult';
-        statusBadge.innerText = '🟠 建議先與授信主管確認';
-        dtiHint.innerText = '⚠️ 評估提示：收支比大於 75%，送件退件機率高，請確認是否有其他資力補充證明。';
-      }
+      // 渲染分期攤還明細
+      var schedData = generateAmortizationSchedule(loanAmount, period, rate);
+      currentSchedule = schedData.list;
+      document.getElementById('valLoanAmount').innerText = 'NT$ ' + Math.round(loanAmount).toLocaleString();
+      document.getElementById('valTotalInterest').innerText = 'NT$ ' + schedData.totalInterest.toLocaleString();
+      document.getElementById('valTotalPayment').innerText = 'NT$ ' + schedData.totalPayment.toLocaleString();
+      renderScheduleTable();
 
       // 動態更新文件清單
       var docContainer = document.getElementById('docListContainer');
       var typeName = document.getElementById('applicantTypeName');
       docContainer.innerHTML = '';
 
-      var docs = [];
       if (applicantType === 'SALARY') {
         typeName.innerText = '受薪族';
-        docs = [
-          '身分證正反面影本 (必要)',
-          '駕駛執照或健保卡雙證件影本 (必要)',
-          '近六個月薪轉存摺封面與內頁明細 (必要)',
-          '最新年度扣繳憑單或所得清單 (加分證明)',
-          '若任職未滿半年，可補前一份工作離職/薪轉證明'
+        currentDocItems = [
+          { text: '身分證正反面影本 (必要身分件)', isNecessary: true, checked: true },
+          { text: '駕駛執照或健保卡雙證件影本 (必要身分件)', isNecessary: true, checked: true },
+          { text: '近六個月薪轉存摺封面與內頁明細 (核心財力件)', isNecessary: true, checked: false },
+          { text: '最新年度扣繳憑單或所得清單 (加分財力件)', isNecessary: false, checked: false },
+          { text: '若任職未滿半年補前一份工作薪轉 (加分說明)', isNecessary: false, checked: false }
         ];
       } else if (applicantType === 'BUSINESS') {
         typeName.innerText = '自營商 / 商家';
-        docs = [
-          '負責人身分證正反面影本 (必要)',
-          '商業登記抄本 / 設立變更登記事項表 (必要)',
-          '近四至六期營業稅申報書 (401 / 405表) (必要)',
-          '公司主要往來銀行存摺近一年明細 (必要)',
-          '營業場所照片或租賃契約 (備查)'
+        currentDocItems = [
+          { text: '負責人身分證正反面影本 (必要身分件)', isNecessary: true, checked: true },
+          { text: '商業登記抄本 / 設立變更登記表 (必要登記件)', isNecessary: true, checked: true },
+          { text: '近四至六期營業稅申報書 (401 / 405表) (核心財力件)', isNecessary: true, checked: false },
+          { text: '公司主要往來銀行存摺近一年明細 (核心財力件)', isNecessary: true, checked: false },
+          { text: '營業場所照片或租賃契約 (備查件)', isNecessary: false, checked: false }
         ];
       } else {
         typeName.innerText = '自由業 / 無薪轉';
-        docs = [
-          '申請人身分證正反面影本 (必要)',
-          '常用存款帳戶近一年存摺完整明細 (必要)',
-          '不動產（房屋/土地）所有權狀影本 (強烈建議)',
-          '定期存款單或基金/股票投資庫存證明 (加分)',
-          '建議提供二親等內具穩定薪轉之二保人'
+        currentDocItems = [
+          { text: '申請人身分證正反面影本 (必要身分件)', isNecessary: true, checked: true },
+          { text: '常用存款帳戶近一年存摺完整明細 (核心財力件)', isNecessary: true, checked: false },
+          { text: '不動產（房屋/土地）所有權狀影本 (強烈建議件)', isNecessary: true, checked: false },
+          { text: '定期存款單或基金/股票投資庫存證明 (加分財力件)', isNecessary: false, checked: false },
+          { text: '二親等內具穩定薪轉之二保人 (加分保人件)', isNecessary: false, checked: false }
         ];
       }
 
-      docs.forEach(function(d) {
+      currentDocItems.forEach(function(item, idx) {
         var li = document.createElement('li');
         li.className = 'doc-item';
-        li.innerHTML = '<input type="checkbox"> <span>' + d + '</span>';
+        var chkId = 'doc_chk_' + idx;
+        var checkedAttr = item.checked ? ' checked' : '';
+        li.innerHTML = '<input type="checkbox" id="' + chkId + '"' + checkedAttr + ' onchange="updateDocEvaluation()"> ' +
+                       '<span>' + item.text + '</span>';
         docContainer.appendChild(li);
       });
+
+      // 初始化計算文件齊備度與銀行風險評估
+      updateDocEvaluation();
     }
 
     // 初次載入自動計算一次
